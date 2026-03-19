@@ -1,0 +1,18 @@
+# Never commit actual BIOS or ROM files
+*.bin
+*.iso
+*.img
+*.rom
+*.zip
+*.7z
+*.rar
+*.chd
+*.cue
+*.nds
+*.gba
+*.sfc
+*.smc
+*.n64
+*.z64
+*.psp
+*.pbp
