@@ -66,43 +66,74 @@ echo ""
 
 download_and_extract() {
   local name="$1"
-  local url="$2"
   local dest="$3"
   local file="$DOWNLOADS/${name}.zip"
+  shift 3
+  local urls=("$@")
 
-  echo -ne "  Downloading ${name}... "
-  if wget -q --show-progress -O "$file" "$url" 2>&1; then
-    echo -ne "  Extracting... "
-    unzip -o -q "$file" -d "$dest" && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗ extract failed${NC}"
-  else
-    echo -e "${RED}✗ download failed${NC}"
-    echo -e "  ${YELLOW}↳ Manual link: see bios/README.md in the repo${NC}"
+  local success=false
+  for url in "${urls[@]}"; do
+    echo -e "  Downloading ${BOLD}${name}${NC}..."
+    echo -e "  ${CYAN}↳ $url${NC}"
+    # Use curl with browser UA to handle MediaFire/Dropbox redirects
+    if curl -L --silent --show-error \
+        -A "Mozilla/5.0 (Android 13; Mobile)" \
+        --max-time 300 \
+        -o "$file" "$url"; then
+      # Verify it's actually a zip
+      if unzip -t "$file" &>/dev/null; then
+        echo -ne "  Extracting... "
+        unzip -o -q "$file" -d "$dest" && echo -e "${GREEN}✓ Done${NC}" && success=true && break
+        echo -e "${RED}✗ extract failed${NC}"
+      else
+        echo -e "  ${RED}✗ Not a valid zip (redirect/HTML page). Trying backup...${NC}"
+        rm -f "$file"
+      fi
+    else
+      echo -e "  ${RED}✗ Download failed. Trying backup...${NC}"
+    fi
+  done
+
+  if [ "$success" = false ]; then
+    echo -e "  ${RED}✗ All mirrors failed for ${name}.${NC}"
+    echo -e "  ${YELLOW}  → Download manually. See bios/README.md${NC}"
   fi
+  echo ""
 }
 
-# PS1 BIOS
+# PS1 BIOS — archive.org primary (reliable), MediaFire + Dropbox as fallback
 download_and_extract \
   "PS1_BIOS" \
-  "http://www.mediafire.com/download/s11dvh2snfrmy29/PS1_BIOS.zip" \
-  "$BIOS/PS1"
+  "" \
+  "$BIOS/PS1" \
+  "https://archive.org/download/redump-sony-playstation-bios/PS1_BIOS.zip" \
+  "https://www.dropbox.com/sh/l0a18zplh1ndlo0/AAA_j4N-OO07owQB1embW_2Za?dl=1" \
+  "http://www.mediafire.com/download/s11dvh2snfrmy29/PS1_BIOS.zip"
 
-# PS2 BIOS (catbox backup — faster than archive.org)
+# PS2 BIOS — catbox is direct/reliable
 download_and_extract \
   "PS2_BIOS" \
+  "" \
+  "$BIOS/PS2" \
   "https://files.catbox.moe/7kfx59.zip" \
-  "$BIOS/PS2"
+  "https://archive.org/download/ps2-bios-megadump/ps2-bios-megadump.zip"
 
-# NDS BIOS — note: mega links can't be wget'd directly
-# Using the Dropbox backup instead
-echo -e "  ${YELLOW}⚠ NDS BIOS: Mega links can't be auto-downloaded.${NC}"
-echo -e "  ${YELLOW}  Download manually: https://mega.nz/#!KPwUHYCZ!mCzMRg3UN8UGJ2WKxAbCMaWVLUdAX0KCYHb0egCbrUk${NC}"
-echo -e "  ${YELLOW}  Then move bios7.bin, bios9.bin, firmware.bin to: $BIOS/NDS/${NC}"
+# NDS BIOS — Mega can't be wget'd; use archive.org
+download_and_extract \
+  "NDS_BIOS" \
+  "" \
+  "$BIOS/NDS" \
+  "https://archive.org/download/nds-bios-firmware/NDS_BIOS.zip" \
+  "https://www.dropbox.com/sh/s6fkz3uzddrokej/AAB-wc2ylp04cJkmN62Sqq04a?dl=1"
 
-# GBA BIOS
+# GBA BIOS — archive.org primary, MediaFire fallback
 download_and_extract \
   "GBA_BIOS" \
-  "http://www.mediafire.com/download/uijj3i3349h8j2j/gba_bios.zip" \
-  "$BIOS/GBA"
+  "" \
+  "$BIOS/GBA" \
+  "https://archive.org/download/gba-bios-pack/gba_bios.zip" \
+  "https://www.dropbox.com/sh/75ciyaphel7c5la/AABADloONTLeLBGyhOtn6HUba?dl=1" \
+  "http://www.mediafire.com/download/uijj3i3349h8j2j/gba_bios.zip"
 
 # RetroArch BIOS pack (large ~500MB — optional)
 echo ""
@@ -112,8 +143,9 @@ if [[ "$RETRO_PACK" =~ ^[Yy]$ ]]; then
   mkdir -p "$BASE/RetroArch/system"
   download_and_extract \
     "RetroArch_BIOS_Pack" \
-    "https://github.com/Abdess/retrobios/releases/download/v2026.03.17/Lakka_RetroArch_BIOS_Pack.zip" \
-    "$BASE/RetroArch/system"
+    "" \
+    "$BASE/RetroArch/system" \
+    "https://github.com/Abdess/retrobios/releases/download/v2026.03.17/Lakka_RetroArch_BIOS_Pack.zip"
 fi
 
 # ── APK links ─────────────────────────────────────────────────
