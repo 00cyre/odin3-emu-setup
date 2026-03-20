@@ -44,7 +44,7 @@ echo -e "${GREEN}[✓] Tools ready${NC}"
 echo ""
 echo -e "${BOLD}[2/4] Creating folder structure...${NC}"
 
-SYSTEMS=("PS1" "PS2" "NDS" "SNES" "GBA" "GBC" "NES" "N64" "PSP" "Genesis" "Arcade")
+SYSTEMS=("PS1" "PS2" "NDS" "3DS" "SNES" "GBA" "GBC" "NES" "N64" "PSP" "Genesis" "Arcade" "Switch")
 for sys in "${SYSTEMS[@]}"; do
   mkdir -p "$ROMS/$sys"
   echo -e "  ${GREEN}✓${NC} Roms/$sys"
@@ -54,6 +54,8 @@ mkdir -p "$BIOS/PS1"
 mkdir -p "$BIOS/PS2"
 mkdir -p "$BIOS/NDS"
 mkdir -p "$BIOS/GBA"
+mkdir -p "$BIOS/3DS"
+mkdir -p "$BIOS/Switch"
 mkdir -p "$DOWNLOADS"
 
 echo -e "${GREEN}[✓] Folders created${NC}"
@@ -135,6 +137,23 @@ download_and_extract \
   "https://www.dropbox.com/sh/75ciyaphel7c5la/AABADloONTLeLBGyhOtn6HUba?dl=1" \
   "http://www.mediafire.com/download/uijj3i3349h8j2j/gba_bios.zip"
 
+# 3DS System Files — aes_keys + nand system data for Azahar/Citra
+download_and_extract \
+  "3DS_BIOS" \
+  "" \
+  "$BIOS/3DS" \
+  "https://archive.org/download/3ds-system-files-pack/3ds_system_files.zip" \
+  "https://files.catbox.moe/r4t2wn.zip"
+
+# Switch Keys — prod.keys + title.keys for Sudachi/Eden
+# Note: keys are console-specific; these are community-shared dumps
+download_and_extract \
+  "Switch_Keys" \
+  "" \
+  "$BIOS/Switch" \
+  "https://archive.org/download/nintendo-switch-keys/switch_keys.zip" \
+  "https://files.catbox.moe/n7xrp3.zip"
+
 # RetroArch BIOS pack (large ~500MB — optional)
 echo ""
 echo -ne "  ${BOLD}Download RetroArch all-in-one BIOS pack? (~500MB) [y/N]:${NC} "
@@ -175,6 +194,15 @@ echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=org.mupen
 echo ""
 echo -e "  ${CYAN}PSP    →${NC} PPSSPP (Play Store)"
 echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=org.ppsspp.ppsspp${NC}"
+echo ""
+echo -e "  ${CYAN}3DS    →${NC} Azahar (APK — sideload, active Citra fork)"
+echo -e "         ${BOLD}https://github.com/azahar-emu/azahar/releases${NC}"
+echo -e "         BIOS → $BIOS/3DS"
+echo ""
+echo -e "  ${CYAN}Switch →${NC} Sudachi (APK — sideload, Yuzu fork)"
+echo -e "         ${BOLD}https://github.com/sudachi-emu/sudachi/releases${NC}"
+echo -e "         Keys  → $BIOS/Switch  (prod.keys + title.keys)"
+echo -e "         Firmware: dump from your own Switch or search archive.org"
 echo ""
 
 # ── Done ──────────────────────────────────────────────────────
