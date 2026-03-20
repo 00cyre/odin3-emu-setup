@@ -37,7 +37,7 @@ echo -e "${GREEN}[✓] Storage access OK${NC}"
 echo ""
 echo -e "${BOLD}[1/4] Installing required tools...${NC}"
 pkg update -y -q
-pkg install -y wget unzip curl 2>/dev/null
+pkg install -y wget unzip curl termux-tools 2>/dev/null
 echo -e "${GREEN}[✓] Tools ready${NC}"
 
 # ── Create folder structure ───────────────────────────────────
@@ -167,42 +167,98 @@ if [[ "$RETRO_PACK" =~ ^[Yy]$ ]]; then
     "https://github.com/Abdess/retrobios/releases/download/v2026.03.17/Lakka_RetroArch_BIOS_Pack.zip"
 fi
 
-# ── APK links ─────────────────────────────────────────────────
+# ── Helper: get latest APK URL from a GitHub repo ────────────
+get_github_apk_url() {
+  local repo="$1"
+  local pattern="${2:-\.apk}"
+  curl -s "https://api.github.com/repos/${repo}/releases/latest" \
+    | grep -o '"browser_download_url":"[^"]*'"$pattern"'[^"]*"' \
+    | head -1 \
+    | cut -d '"' -f 4
+}
+
+# ── Helper: download APK and trigger system installer ─────────
+sideload_apk() {
+  local name="$1"
+  local url="$2"
+  local apk_file="$DOWNLOADS/${name}.apk"
+
+  if [ -z "$url" ]; then
+    echo -e "  ${RED}✗ Could not resolve APK URL for ${name} — check GitHub manually${NC}"
+    return
+  fi
+
+  echo -e "  ${CYAN}↓${NC} ${BOLD}${name}${NC}"
+  echo -e "    ${CYAN}$url${NC}"
+
+  if curl -L --silent --show-error \
+      -A "Mozilla/5.0 (Android 13; Mobile)" \
+      --max-time 300 \
+      -o "$apk_file" "$url"; then
+    # Verify it's actually an APK (zip-based)
+    if unzip -t "$apk_file" &>/dev/null; then
+      echo -e "  ${GREEN}✓ Downloaded${NC} → launching installer..."
+      # termux-open is most reliable; fall back to am start
+      termux-open "$apk_file" 2>/dev/null || \
+        am start -a android.intent.action.VIEW \
+          -d "file://$apk_file" \
+          -t "application/vnd.android.package-archive" 2>/dev/null || \
+        echo -e "  ${YELLOW}  → Install manually: $apk_file${NC}"
+      sleep 5  # Give the user time to approve before next install
+    else
+      echo -e "  ${RED}✗ File doesn't look like a valid APK${NC}"
+    fi
+  else
+    echo -e "  ${RED}✗ Download failed for ${name}${NC}"
+  fi
+  echo ""
+}
+
+# ── Auto-sideload emulator APKs ───────────────────────────────
 echo ""
-echo -e "${BOLD}[4/4] Emulator install links${NC}"
-echo -e "${YELLOW}      (Open these in your browser to install)${NC}"
+echo -e "${BOLD}[4/4] Downloading & installing emulators...${NC}"
+echo -e "${YELLOW}      Approve each installer prompt as it appears${NC}"
+echo -e "${YELLOW}      (Enable 'Install unknown apps' for Termux if prompted)${NC}"
 echo ""
 
-echo -e "  ${CYAN}PS1    →${NC} DuckStation (Play Store)"
-echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=com.github.stenzek.duckstation${NC}"
+echo -e "  ${BOLD}Fetching latest release info from GitHub...${NC}"
+
+# Resolve latest APK URLs dynamically
+DUCKSTATION_URL=$(get_github_apk_url "stenzek/duckstation" "arm64-v8a-release\.apk")
+MELONDS_URL=$(get_github_apk_url "melonDS-emu/melonDS-android" "\.apk")
+RETROARCH_URL=$(get_github_apk_url "libretro/RetroArch" "RetroArch_aarch64\.apk")
+PPSSPP_URL=$(get_github_apk_url "hrydgard/ppsspp" "arm64-v8a\.apk")
+MUPEN_URL=$(get_github_apk_url "fzurita/mupen64plus-ae" "arm64\.apk")
+AZAHAR_URL=$(get_github_apk_url "azahar-emu/azahar" "arm64-v8a\.apk")
+SUDACHI_URL=$(get_github_apk_url "sudachi-emu/sudachi" "arm64-v8a\.apk")
 echo ""
-echo -e "  ${CYAN}PS2    →${NC} NetherSX2 (APK — sideload)"
-echo -e "         ${BOLD}https://github.com/Trixarian/NetherSX2-patch${NC}"
+
+# PS1
+sideload_apk "DuckStation"     "$DUCKSTATION_URL"
+# NDS
+sideload_apk "melonDS"         "$MELONDS_URL"
+# SNES / GBA / multi-system
+sideload_apk "RetroArch"       "$RETROARCH_URL"
+# PSP
+sideload_apk "PPSSPP"          "$PPSSPP_URL"
+# N64
+sideload_apk "Mupen64Plus_FZ"  "$MUPEN_URL"
+# 3DS
+sideload_apk "Azahar_3DS"      "$AZAHAR_URL"
+# Switch
+sideload_apk "Sudachi_Switch"  "$SUDACHI_URL"
+
+# PS2 — NetherSX2 requires manual patching, can't auto-resolve a clean APK URL
+echo -e "  ${YELLOW}PS2 (NetherSX2):${NC} requires manual patch step"
+echo -e "  ${BOLD}https://github.com/Trixarian/NetherSX2-patch${NC}"
 echo ""
-echo -e "  ${CYAN}NDS    →${NC} DraStic (Play Store, paid) or melonDS (free)"
-echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=com.dsemu.drastic${NC}"
-echo -e "         ${BOLD}https://github.com/melonDS-emu/melonDS-android/releases${NC}"
+# DraStic (paid Play Store app — can't sideload)
+echo -e "  ${YELLOW}NDS alt — DraStic (paid):${NC}"
+echo -e "  ${BOLD}https://play.google.com/store/apps/details?id=com.dsemu.drastic${NC}"
 echo ""
-echo -e "  ${CYAN}SNES   →${NC} RetroArch (Play Store)"
-echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=com.retroarch${NC}"
-echo ""
-echo -e "  ${CYAN}GBA    →${NC} MyBoy! (Play Store)"
-echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=com.fastemulator.gba${NC}"
-echo ""
-echo -e "  ${CYAN}N64    →${NC} Mupen64Plus FZ (Play Store)"
-echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=org.mupen64plusae.v3_fz${NC}"
-echo ""
-echo -e "  ${CYAN}PSP    →${NC} PPSSPP (Play Store)"
-echo -e "         ${BOLD}https://play.google.com/store/apps/details?id=org.ppsspp.ppsspp${NC}"
-echo ""
-echo -e "  ${CYAN}3DS    →${NC} Azahar (APK — sideload, active Citra fork)"
-echo -e "         ${BOLD}https://github.com/azahar-emu/azahar/releases${NC}"
-echo -e "         BIOS → $BIOS/3DS"
-echo ""
-echo -e "  ${CYAN}Switch →${NC} Sudachi (APK — sideload, Yuzu fork)"
-echo -e "         ${BOLD}https://github.com/sudachi-emu/sudachi/releases${NC}"
-echo -e "         Keys  → $BIOS/Switch  (prod.keys + title.keys)"
-echo -e "         Firmware: dump from your own Switch or search archive.org"
+# MyBoy (paid Play Store)
+echo -e "  ${YELLOW}GBA alt — MyBoy! (paid):${NC}"
+echo -e "  ${BOLD}https://play.google.com/store/apps/details?id=com.fastemulator.gba${NC}"
 echo ""
 
 # ── Done ──────────────────────────────────────────────────────
@@ -214,7 +270,7 @@ echo -e "  ROM folders:  ${BOLD}$ROMS${NC}"
 echo -e "  BIOS folders: ${BOLD}$BIOS${NC}"
 echo ""
 echo -e "  ${YELLOW}Next steps:${NC}"
-echo -e "  1. Install emulators from the links above"
+echo -e "  1. Approve any pending installer prompts above"
 echo -e "  2. Drop ROMs into the matching folder under $ROMS"
 echo -e "  3. Point each emulator to its BIOS folder under $BIOS"
 echo -e "  4. If controller not working → read CONTROLLER_FIX.md in the repo"
